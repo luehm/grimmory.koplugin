@@ -201,7 +201,7 @@ function Grimmory:onSuspend()
     self.reading_recorder:onSessionEnd()
 
     if self.settings:getSyncOnSuspend() then
-       self:onGrimmorySync(false)
+       self:onGrimmorySync(false, nil, nil, true)
     end
 end
 
@@ -221,7 +221,7 @@ function Grimmory:onPowerOff()
     self.reading_recorder:onSessionEnd()
 
     if self.settings:getSyncOnPowerOff() then
-       self:onGrimmorySync(false)
+       self:onGrimmorySync(false, nil, nil, true)
     end
 end
 
@@ -254,7 +254,7 @@ function Grimmory:onCloseDocument()
     if self.settings:getSyncOnCloseDocument() then
         -- Do not block the UI thread
         UIManager:nextTick(function()
-            self:onGrimmorySync(false)
+            self:onGrimmorySync(false, nil, nil, true)
         end)
     end
 end
@@ -410,7 +410,7 @@ function Grimmory:onGrimmorySyncOpenBook(verbose)
     return self:onGrimmorySync(verbose, book_path)
 end
 
-function Grimmory:refreshUI()
+function Grimmory:refreshUI(seamless_reload)
    if self.ui == nil then
         return
     end
@@ -428,11 +428,12 @@ function Grimmory:refreshUI()
         pcall(self.ui.annotation.updateAnnotations, self.ui.annotation, true, true)
     end
 
-    -- Reload document so any changes apply
-    self.ui:reloadDocument()
+    -- Reload document so any changes apply. In background/suspend flows we
+    -- prefer a seamless reload to avoid painting the "Opening file ..." status.
+    self.ui:reloadDocument(nil, seamless_reload == true)
 end
 
-function Grimmory:onGrimmorySync(verbose, book_path, refresh_book)
+function Grimmory:onGrimmorySync(verbose, book_path, refresh_book, seamless_reload)
     -- Tell everything to flush so we have data available for our sync
     UIManager:broadcastEvent(Event:new("FlushSettings"))
 
@@ -618,7 +619,7 @@ function Grimmory:onGrimmorySync(verbose, book_path, refresh_book)
             end
         end
 
-        self:refreshUI()
+        self:refreshUI(seamless_reload)
 
         if verbose then
             local message = {
